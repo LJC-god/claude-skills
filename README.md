@@ -10,12 +10,22 @@ Claude AI 自定义 Skill 合集，可直接上传到 [claude.ai](https://claude
 | [tavily](./tavily/) | LLM 优化网络搜索与内容提取 | `TAVILY_API_KEY` |
 | [brave](./brave/) | Brave Search 隐私优先网络搜索 | `BRAVE_API_KEY` |
 | [notion](./notion/) | Notion 工作区完整操作（MCP） | Notion MCP 已连接 |
+| [youtube](./youtube/) | YouTube 视频搜索、频道分析、字幕提取 | `YOUTUBE_API_KEY` |
+| [reddit](./reddit/) | Reddit 帖子搜索、社区浏览、评论分析 | `REDDIT_CLIENT_ID` + `REDDIT_CLIENT_SECRET` |
 
 ## 安装方法
 
 1. 下载对应的 `.skill` 文件
 2. 打开 Claude.ai → 设置 → Skills → 上传 `.skill` 文件
 3. 配置对应的环境变量
+
+## 获取 API Keys
+
+- **YouTube**：[Google Cloud Console](https://console.cloud.google.com/apis/credentials)，启用 YouTube Data API v3
+- **Reddit**：[Reddit App Preferences](https://www.reddit.com/prefs/apps)，创建 script 类型应用
+- **Brave**：[Brave Search API](https://api.search.brave.com/)
+- **Tavily**：[Tavily](https://app.tavily.com/)
+- **极致了（mcp-jzl）**：[大家啦](https://www.dajiala.com/)
 
 ## 文件结构
 
