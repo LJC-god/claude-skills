@@ -1,231 +1,173 @@
 ---
 name: bilibili
-description: 获取哔哩哔哩（B站）视频信息、字幕、UP主数据和搜索内容。当用户提到 B站/哔哩哔哩链接、想获取视频信息、下载字幕/文字稿、分析UP主、搜索B站视频，或任何涉及 bilibili.com 内容的任务时，都应使用此 skill。主要通过 yt-dlp 工具实现，无需 API Key。
+description: 获取 B站（哔哩哔哩）视频信息、UP主数据、搜索视频、下载字幕/弹幕。当用户提到 B站链接、BV号、AV号、想搜索B站视频、获取UP主信息、下载视频字幕，或任何涉及哔哩哔哩内容的任务时，都应使用此 skill。支持通过 yt-dlp 下载视频信息，以及调用 B站公开 web 接口。无需 API Key，部分功能需要登录 Cookie。
 ---
 
-# B站（哔哩哔哩）Skill
+# Bilibili Skill
 
-通过 yt-dlp 和 B站公开接口获取视频信息、字幕和UP主数据。
+获取 B站视频、UP主、搜索数据。B站没有官方开放 API（开放平台仅供企业），本 skill 使用 **B站 web 端公开接口** 和 **yt-dlp** 实现功能。
 
-## ⚠️ 重要说明
-
-B站于 2026 年 1 月向第三方 API 文档项目发律师函，**不欢迎直接调用非公开接口**。
-本 skill 采用两种合规方式：
-
-1. **yt-dlp**：业界标准的视频信息提取工具，合法使用
-2. **B站官方开放平台**：[openhome.bilibili.com](https://openhome.bilibili.com/doc)（需申请 AppKey）
+> ⚠️ **重要说明**：本 skill 仅使用浏览器正常访问时也会调用的公开 web 接口。请合理使用，勿高频请求。
 
 ---
 
-## 工具选择
+## ID 格式说明
 
-| 场景 | 推荐方式 |
-|------|----------|
-| 获取视频信息、字幕 | yt-dlp（无需认证） |
-| 批量分析、数据研究 | yt-dlp + jq 解析 |
-| 商业级 UP主/创作者数据 | B站开放平台 API |
-| 下载视频 | yt-dlp（遵守版权） |
+| 格式 | 示例 | 说明 |
+|------|------|------|
+| BV 号 | `BV1uT4y1P7CX` | 当前主要 ID 格式，URL 中可见 |
+| AV 号 | `av170001` | 旧格式，仍可用 |
+| UID | `12345678` | UP主用户 ID，在 space.bilibili.com/UID |
+| 短链 | `b23.tv/xxxxx` | 重定向到完整链接 |
+
+**从 URL 提取 ID**：
+- `https://www.bilibili.com/video/BV1uT4y1P7CX` → `BV1uT4y1P7CX`
+- `https://space.bilibili.com/12345678` → UID `12345678`
 
 ---
 
-## 方式一：yt-dlp（推荐）
+## 方式一：yt-dlp（推荐，功能最全）
 
-### 安装
 ```bash
+# 安装
 pip install yt-dlp
-# 或
-pip install yt-dlp --upgrade
-```
 
-### 获取视频信息（JSON）
-```bash
-# 通过 BV 号或 AV 号
-yt-dlp --dump-json --no-download "https://www.bilibili.com/video/BVxxxxxx"
+# 获取视频基本信息（不下载）
+yt-dlp --dump-json "https://www.bilibili.com/video/BV1uT4y1P7CX"
 
-# 通过 av 号
-yt-dlp --dump-json --no-download "https://www.bilibili.com/video/av170001"
+# 列出所有分P
+yt-dlp --flat-playlist "https://www.bilibili.com/video/BV1uT4y1P7CX"
 
-# 只提取关键字段
-yt-dlp --dump-json --no-download "URL" | python3 -c "
-import json, sys
-d = json.load(sys.stdin)
-print(f'标题：{d[\"title\"]}')
-print(f'UP主：{d[\"uploader\"]}')
-print(f'播放量：{d.get(\"view_count\", \"N/A\")}')
-print(f'点赞：{d.get(\"like_count\", \"N/A\")}')
-print(f'弹幕：{d.get(\"comment_count\", \"N/A\")}')
-print(f'时长：{d.get(\"duration\", 0)}秒')
-print(f'发布时间：{d.get(\"upload_date\", \"\")}')
-print(f'描述：{d.get(\"description\", \"\")[:200]}')
+# 下载字幕（CC字幕）
+yt-dlp --write-sub --skip-download --sub-lang zh-Hans \
+  "https://www.bilibili.com/video/BV1uT4y1P7CX"
+
+# 解析关键信息
+yt-dlp --dump-json "URL" | python3 -c "
+import sys,json
+d=json.load(sys.stdin)
+print('标题:', d['title'])
+print('UP主:', d['uploader'])
+print('播放量:', d.get('view_count'))
+print('点赞:', d.get('like_count'))
+print('时长:', d['duration'], '秒')
+print('简介:', d['description'][:200])
 "
-```
 
-### 可获取的字段
-```
-title          - 视频标题
-uploader       - UP主名称
-uploader_id    - UP主 uid
-upload_date    - 发布日期（YYYYMMDD格式）
-duration       - 时长（秒）
-view_count     - 播放量
-like_count     - 点赞数
-comment_count  - 评论/弹幕数
-description    - 视频简介
-tags           - 标签列表
-thumbnail      - 封面图 URL
-webpage_url    - 视频链接
-formats        - 可用清晰度列表
-```
-
-### 获取字幕/字幕文字稿
-
-```bash
-# 列出所有可用字幕
-yt-dlp --list-subs "https://www.bilibili.com/video/BVxxxxxx"
-
-# 下载中文字幕（AI 生成）
-yt-dlp --write-subs --write-auto-subs \
-  --sub-langs "zh-CN,zh-Hans,ai-zh" \
-  --skip-download \
-  --output "/tmp/%(id)s.%(ext)s" \
-  "https://www.bilibili.com/video/BVxxxxxx"
-
-# 转换为 srt 格式
-yt-dlp --write-auto-subs --sub-langs "zh-CN" \
-  --convert-subs srt --skip-download \
-  --output "/tmp/%(title)s" \
-  "URL"
-
-# 提取纯文本（去掉时间轴）
-cat /tmp/subtitles.srt | grep -v "^[0-9]" | grep -v "^-->" | grep -v "^$"
-```
-
-### 获取播放列表/UP主视频列表
-
-```bash
-# UP主所有视频（只获取信息，不下载）
-yt-dlp --dump-json --no-download --flat-playlist \
-  "https://space.bilibili.com/UID/video"
-
-# 播放列表
-yt-dlp --dump-json --no-download --flat-playlist \
-  "https://www.bilibili.com/medialist/play/UID?business=space_collection&business_id=LISTID"
-```
-
-### 搜索视频
-
-B站搜索结果通过网页获取，yt-dlp 支持搜索：
-```bash
-# 搜索关键词，获取前10个视频信息
-yt-dlp --dump-json --no-download "bilisearch:Python教程" --playlist-end 10
+# 需要登录的视频（传入浏览器 Cookie）
+yt-dlp --cookies-from-browser chrome --dump-json "URL"
 ```
 
 ---
 
-## 方式二：B站开放平台 API（商业/正式场景）
+## 方式二：B站公开 Web 接口
 
-官网：https://openhome.bilibili.com/doc
+所有接口均为 GET 请求，**无需 API Key**。
 
-需要注册开发者账号并申请 AppKey，适合需要大量调用或商业用途的场景。
+```
+公共 Header：
+  User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64)
+  Referer: https://www.bilibili.com
+```
 
-### 主要开放接口
-- 视频数据查询（播放量、点赞、投币等）
-- UP主粉丝数、视频列表
-- 直播数据
+### 1. 获取视频详情
+
+```bash
+GET https://api.bilibili.com/x/web-interface/view?bvid=BV1uT4y1P7CX
+
+# 响应关键字段：
+# data.title          视频标题
+# data.desc           视频简介
+# data.owner.name     UP主名称
+# data.owner.mid      UP主 UID
+# data.stat.view      播放量
+# data.stat.like      点赞数
+# data.stat.danmaku   弹幕数
+# data.stat.reply     评论数
+# data.stat.coin      投币数
+# data.stat.favorite  收藏数
+# data.duration       时长（秒）
+# data.pic            封面图 URL
+# data.pages          分P列表
+# data.cid            cid（下载弹幕用）
+```
+
+### 2. 搜索视频
+
+```bash
+GET https://api.bilibili.com/x/web-interface/search/type
+  ?search_type=video
+  &keyword=搜索词
+  &page=1
+  &pagesize=20
+  &order=totalrank      # totalrank=综合 | click=播放量 | pubdate=最新 | dm=弹幕 | stow=收藏
+
+# 响应：data.result 数组
+```
+
+### 3. 获取 UP 主信息
+
+```bash
+GET https://api.bilibili.com/x/space/acc/info?mid=UID
+
+# 响应：data.name、data.sign（简介）、data.fans（粉丝数）、data.face（头像URL）
+```
+
+### 4. 获取 UP 主视频列表
+
+```bash
+GET https://api.bilibili.com/x/space/arc/search
+  ?mid=UID&pn=1&ps=30&order=pubdate
+```
+
+### 5. 获取视频评论
+
+```bash
+GET https://api.bilibili.com/x/v2/reply
+  ?type=1&oid=AV号数字&pn=1&ps=20&sort=2
+# sort: 0=按时间 | 2=按热度
+```
+
+### 6. 获取弹幕（XML）
+
+```bash
+GET https://comment.bilibili.com/{cid}.xml
+# cid 从 /view 接口的 data.cid 获取
+# 每条 <d> 元素属性格式："时间偏移,类型,字体,颜色,时间戳,池,用户hash,ID"
+```
+
+### 7. 热门排行榜
+
+```bash
+# 全站排行榜
+GET https://api.bilibili.com/x/web-interface/ranking/v2?rid=0&type=all
+
+# 热门视频
+GET https://api.bilibili.com/x/web-interface/popular?pn=1&ps=20
+```
 
 ---
 
-## 从 URL 提取视频 ID
+## 场景判断
 
-```python
-import re
-
-def parse_bilibili_url(url: str) -> dict:
-    """解析 B站各种格式的 URL"""
-    result = {}
-
-    # BV 号
-    bv = re.search(r'BV([a-zA-Z0-9]+)', url)
-    if bv:
-        result['bvid'] = 'BV' + bv.group(1)
-
-    # AV 号
-    av = re.search(r'(?:av|/video/av)(\d+)', url, re.I)
-    if av:
-        result['aid'] = int(av.group(1))
-
-    # UP主 UID
-    uid = re.search(r'space\.bilibili\.com/(\d+)', url)
-    if uid:
-        result['uid'] = int(uid.group(1))
-
-    return result
-
-# 示例
-# https://www.bilibili.com/video/BV1GJ411x7h7 → {'bvid': 'BV1GJ411x7h7'}
-# https://www.bilibili.com/video/av170001 → {'aid': 170001}
-# https://space.bilibili.com/123456/video → {'uid': 123456}
-```
+| 用户需求 | 使用方式 |
+|----------|----------|
+| 提供链接/BV号，要视频信息 | web 接口 `/view` 或 yt-dlp `--dump-json` |
+| 搜索视频关键词 | web 接口 `/search/type` |
+| 获取 UP 主资料和视频 | web 接口 `/space/acc/info` + `/arc/search` |
+| 获取字幕/文字稿 | yt-dlp `--write-sub` |
+| 获取弹幕内容分析 | `comment.bilibili.com/{cid}.xml` |
+| 需要登录才能访问 | yt-dlp `--cookies-from-browser chrome` |
 
 ---
 
-## 常用完整工作流
+## 注意事项
 
-### 工作流1：分析单个视频
-
-```bash
-URL="https://www.bilibili.com/video/BVxxxxxx"
-
-# 获取完整信息
-INFO=$(yt-dlp --dump-json --no-download "$URL")
-
-# 解析关键数据
-echo $INFO | python3 -c "
-import json, sys
-d = json.load(sys.stdin)
-print('=== 视频分析 ===')
-print(f'标题：{d[\"title\"]}')
-print(f'UP主：{d[\"uploader\"]} (uid:{d.get(\"uploader_id\")})')
-print(f'发布：{d.get(\"upload_date\",\"\")[:4]}-{d.get(\"upload_date\",\"\")[4:6]}-{d.get(\"upload_date\",\"\")[6:]}')
-print(f'时长：{d.get(\"duration\",0)//60}分{d.get(\"duration\",0)%60}秒')
-print(f'播放：{d.get(\"view_count\",0):,}')
-print(f'点赞：{d.get(\"like_count\",0):,}')
-print(f'标签：{\" \".join(d.get(\"tags\",[])[:5])}')
-print(f'简介：{d.get(\"description\",\"\")[:300]}')
-"
-```
-
-### 工作流2：提取视频字幕做总结
-
-```bash
-URL="https://www.bilibili.com/video/BVxxxxxx"
-
-# 获取字幕
-yt-dlp --write-auto-subs --sub-langs "zh-CN,zh-Hans,zh" \
-  --skip-download --output "/tmp/bili_sub" "$URL"
-
-# 找到字幕文件并提取纯文本
-find /tmp -name "bili_sub*.vtt" -o -name "bili_sub*.srt" 2>/dev/null | head -1 | \
-  xargs cat | grep -v "^[0-9:\.]" | grep -v "^-->" | grep -v "^$" | \
-  head -200
-```
-
-### 工作流3：获取UP主最新视频列表
-
-```bash
-UID=12345678  # UP主UID（从 space.bilibili.com/UID 获取）
-
-yt-dlp --flat-playlist --dump-json --no-download \
-  --playlist-end 20 \
-  "https://space.bilibili.com/$UID/video" | \
-  python3 -c "
-import sys
-for line in sys.stdin:
-    import json
-    v = json.loads(line)
-    print(f'{v.get(\"id\",\"\")} | {v.get(\"title\",\"\")}')
-"
-```
+1. **不需要 API Key**，直接调用即可
+2. 搜索接口有时需要 Cookie（`SESSDATA`）才能返回完整结果
+3. 请勿高频请求，建议每次请求间隔 1 秒以上
+4. 部分视频（大会员专属、地区限制）无法免登录访问
+5. BV 号可以直接用，无需转换为 AV 号
 
 ---
 
