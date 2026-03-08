@@ -12,12 +12,13 @@ Claude AI 自定义 Skill 合集，可直接上传到 [claude.ai](https://claude
 | [notion](./notion/) | Notion 工作区完整操作（MCP） | Notion MCP 已连接 |
 | [youtube](./youtube/) | YouTube 视频搜索、频道分析、字幕提取 | `YOUTUBE_API_KEY` |
 | [reddit](./reddit/) | Reddit 帖子搜索、社区浏览、评论分析 | `REDDIT_CLIENT_ID` + `REDDIT_CLIENT_SECRET` |
+| [bilibili](./bilibili/) | B站视频信息、字幕提取、UP主分析 | 无需 API Key（使用 yt-dlp） |
 
 ## 安装方法
 
 1. 下载对应的 `.skill` 文件
 2. 打开 Claude.ai → 设置 → Skills → 上传 `.skill` 文件
-3. 配置对应的环境变量
+3. 配置对应的环境变量（bilibili 无需配置）
 
 ## 获取 API Keys
 
@@ -26,6 +27,7 @@ Claude AI 自定义 Skill 合集，可直接上传到 [claude.ai](https://claude
 - **Brave**：[Brave Search API](https://api.search.brave.com/)
 - **Tavily**：[Tavily](https://app.tavily.com/)
 - **极致了（mcp-jzl）**：[大家啦](https://www.dajiala.com/)
+- **Bilibili**：无需 API Key，依赖 yt-dlp 工具
 
 ## 文件结构
 
